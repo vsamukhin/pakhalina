@@ -1,0 +1,52 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    restart: always
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: pakhalina
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    volumes:
+      - ./apps/backend:/app/apps/backend
+      - ./packages/shared:/app/packages/shared
+      - ./tsconfig.base.json:/app/tsconfig.base.json
+      - /app/node_modules
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgres://dev:dev@postgres:5432/pakhalina
+      NODE_ENV: development
+    depends_on:
+      - postgres
+    command: sh -c "pnpm prisma generate && pnpm dev"
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/admin.Dockerfile
+    volumes:
+      - ./apps/admin:/app/apps/admin
+      - ./packages/shared:/app/packages/shared
+      - ./tsconfig.base.json:/app/tsconfig.base.json 
+      - /app/node_modules
+    ports:
+      - '5173:5173'
+    environment:
+      NODE_ENV: development
+    depends_on:
+      - backend
+    command: pnpm dev --host
+
+volumes:
+  postgres_data:
